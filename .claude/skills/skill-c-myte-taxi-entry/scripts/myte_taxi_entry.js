@@ -42,6 +42,10 @@ function updateHistoryStatus(historyId, status) {
     entry.image_path = entry.image_path.replace(/^data\/pending\//, 'data/done/');
     fs.writeFileSync(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
     fs.mkdirSync(DONE_DIR, { recursive: true });
+    // 既存の done フォルダがあれば削除してから rename
+    if (fs.existsSync(doneFolderPath)) {
+      fs.rmSync(doneFolderPath, { recursive: true, force: true });
+    }
     fs.renameSync(pendingFolderPath, doneFolderPath);
   } else {
     fs.writeFileSync(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
@@ -267,6 +271,11 @@ async function fillByLabel(page, labelText, value) {
     viewport: { width: 1920, height: 1080 },
     locale: 'ja-JP',
     timezoneId: 'Asia/Tokyo',
+    args: [
+      '--restore-last-session',
+      '--disable-features=ClearSessionCookiesOnExit',
+      '--enable-features=RestoreSessionStateForNTP',
+    ],
   });
 
   const page = browser.pages()[0] || await browser.newPage();

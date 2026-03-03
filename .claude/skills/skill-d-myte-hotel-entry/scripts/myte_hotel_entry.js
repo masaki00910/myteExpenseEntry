@@ -42,6 +42,10 @@ function updateHistoryStatus(historyId, status) {
     entry.image_path = entry.image_path.replace(/^data\/pending\//, 'data/done/');
     fs.writeFileSync(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
     fs.mkdirSync(DONE_DIR, { recursive: true });
+    // 既存の done フォルダがあれば削除してから rename
+    if (fs.existsSync(doneFolderPath)) {
+      fs.rmSync(doneFolderPath, { recursive: true, force: true });
+    }
     fs.renameSync(pendingFolderPath, doneFolderPath);
   } else {
     fs.writeFileSync(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
@@ -301,6 +305,11 @@ async function fillDate(page, selectorCandidates, dateStr, label, convertToMDY =
     viewport: { width: 1920, height: 1080 },
     locale: 'ja-JP',
     timezoneId: 'Asia/Tokyo',
+    args: [
+      '--restore-last-session',
+      '--disable-features=ClearSessionCookiesOnExit',
+      '--enable-features=RestoreSessionStateForNTP',
+    ],
   });
 
   const page = browser.pages()[0] || await browser.newPage();
@@ -402,18 +411,41 @@ async function fillDate(page, selectorCandidates, dateStr, label, convertToMDY =
     if (!await selectDropdown(page, 'Hotel Chain', 'Other')) {
       console.error('  警告: Hotel Chain の自動選択に失敗しました');
     }
-    await page.waitForTimeout(500);
-    // Other テキスト入力が有効になるのを待つ
+    await page.waitForTimeout(1000);
+    // Other テキスト入力が有効になるまでポーリングで待機
     const otherInput = page.locator('#other_input');
     try {
-      await otherInput.waitFor({ state: 'visible', timeout: 3000 });
-      const isDisabled = await otherInput.getAttribute('disabled');
-      if (isDisabled === null) {
+      await otherInput.waitFor({ state: 'visible', timeout: 5000 });
+      // disabled 属性が消えるまで最大5秒待機
+      for (let i = 0; i < 10; i++) {
+        const isDisabled = await otherInput.getAttribute('disabled');
+        if (isDisabled === null) break;
+        await page.waitForTimeout(500);
+      }
+      const isStillDisabled = await otherInput.getAttribute('disabled');
+      if (isStillDisabled === null) {
         await otherInput.clear();
         await otherInput.fill(f.hotel_name);
         console.log(`  Hotel Name (Other) = '${f.hotel_name}' を入力しました`);
       } else {
-        console.error('  警告: Other input が disabled です');
+        // disabled が解除されない場合、JavaScriptで直接解除して入力
+        console.log('  Other input が disabled のため、直接有効化して入力します...');
+        await page.evaluate(() => {
+          const el = document.querySelector('#other_input');
+          if (el) { el.removeAttribute('disabled'); el.readOnly = false; }
+        });
+        await page.waitForTimeout(300);
+        await otherInput.clear();
+        await otherInput.fill(f.hotel_name);
+        // Angular の change イベントを発火
+        await page.evaluate(() => {
+          const el = document.querySelector('#other_input');
+          if (el) {
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+        console.log(`  Hotel Name (Other) = '${f.hotel_name}' を入力しました（強制有効化）`);
       }
     } catch (e) {
       console.error(`  警告: Other input が見つかりません: ${e.message}`);

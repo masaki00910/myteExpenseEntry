@@ -44,6 +44,11 @@ async function addChargeCode() {
     viewport: { width: 1920, height: 1080 },
     locale: 'ja-JP',
     timezoneId: 'Asia/Tokyo',
+    args: [
+      '--restore-last-session',
+      '--disable-features=ClearSessionCookiesOnExit',
+      '--enable-features=RestoreSessionStateForNTP',
+    ],
   });
 
   const page = browser.pages()[0] || await browser.newPage();
