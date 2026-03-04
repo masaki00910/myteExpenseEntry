@@ -58,6 +58,182 @@ entry.json の myte_fields 例:
 }
 ```
 
+## 処理フロー
+
+### Step 1: 前回請求情報の取得（Bash でスクリプト実行）
+
+**ユーザーに何も聞く前に**、まず以下のスクリプトを Bash で実行する:
+
+```bash
+node .claude/skills/skill-e-myte-public-transport-entry/scripts/get_previous_period.js
+```
+
+このスクリプトは:
+1. myTE にアクセス（SSO切れの場合はブラウザで認証待ち）
+2. 前回ピリオドの EXPENSES タブを確認
+3. Travel - Public, Limo, & Other の To 日付を取得
+4. 今のピリオドに戻る
+5. **stdout に JSON を出力して終了**: `{"lastDate":"2/15/2026","success":true}`
+
+スクリプトの stdout 出力（JSON）をパースし、`lastDate` を取得する。
+
+取得結果をもとに以下を自動算出する:
+- **From（開始日）**: 前回請求済み終了日の翌日
+- **To（終了日）**: 本日（スキル実行日、`currentDate` から取得）
+- **営業日数**: From〜To間の営業日数（土日・日本の祝日を除外）
+- **Trip No.（往復回数）**: 営業日数 × 2
+
+**営業日数の算出ルール:**
+- 土曜日・日曜日を除外する
+- 日本の祝日（国民の祝日）を除外する
+- 祝日データは `currentDate` のシステム情報から年を特定し、その年の祝日を考慮する
+
+**lastDate が null の場合**（前回エントリなし）: ユーザーに From 日付を直接入力してもらう
+
+### Step 2: 登録内容の確認（AskUserQuestion を使用）
+
+Step 1 の算出結果を提案値として提示し、**AskUserQuestion** でユーザーに確認・修正を求める。
+
+**提示メッセージ（AskUserQuestion 呼び出し前）:**
+```
+交通費の登録内容を確認します。
+
+前回請求済み終了日: 2026/02/15
+今回の提案:
+  期間: 2026/02/16 〜 2026/03/04（本日）
+  営業日数: 12日
+  往復回数（Trip No.）: 24回（12日 × 2）
+```
+
+**1回目の AskUserQuestion:**
+```
+AskUserQuestion({
+  questions: [
+    {
+      question: "WBSコマンドまたはCharge Codeを入力してください",
+      header: "WBS",
+      multiSelect: false,
+      options: [
+        // wbs_mapping.json の登録済みコマンドを動的に表示
+        // 例: { label: "sb", description: "CJDK4001 - Softbank Corp." }
+      ]
+      // "Other" → notes に Charge Code を直接入力
+    },
+    {
+      question: "Reason（利用理由）を選択してください",
+      header: "Reason",
+      multiSelect: false,
+      options: [
+        { label: "Home <-> Client Site/Other Office", description: "自宅と客先/他オフィス間" },
+        { label: "Home <-> Airport/Train", description: "自宅と空港/駅間" },
+        { label: "Client Site <-> Airport/Train", description: "客先と空港/駅間" },
+        { label: "Hotel <-> Airport/Train", description: "ホテルと空港/駅間" }
+      ]
+    },
+    {
+      question: "Type（交通機関の種類）を選択してください",
+      header: "Type",
+      multiSelect: false,
+      options: [
+        { label: "Public Transportation", description: "電車・バス等の公共交通機関" },
+        { label: "Limo", description: "リムジンバス等" },
+        { label: "Car Service", description: "カーサービス" }
+      ]
+    },
+    {
+      question: "片道運賃（One Trip Amount）を入力してください（円）",
+      header: "金額",
+      multiSelect: false,
+      options: [
+        { label: "580", description: "例: 渋谷→六本木" },
+        { label: "1000", description: "例: 新宿→横浜" }
+      ]
+      // "Other" → notes に正確な金額を入力
+    }
+  ]
+})
+```
+
+**2回目の AskUserQuestion（提案値の確認）:**
+```
+AskUserQuestion({
+  questions: [
+    {
+      question: "出発地 (From Location) を入力してください",
+      header: "From",
+      multiSelect: false,
+      options: [
+        { label: "自宅", description: "自宅から出発" },
+        { label: "会社オフィス", description: "社内オフィスから出発" },
+        { label: "客先オフィス", description: "客先オフィスから出発" }
+      ]
+    },
+    {
+      question: "到着地 (To Location) を入力してください",
+      header: "To",
+      multiSelect: false,
+      options: [
+        { label: "自宅", description: "自宅に到着" },
+        { label: "会社オフィス", description: "社内オフィスに到着" },
+        { label: "客先オフィス", description: "客先オフィスに到着" }
+      ]
+    },
+    {
+      question: "期間とTrip No.を確認してください（提案: {from} 〜 {to}、{trip_no}回）",
+      header: "期間",
+      multiSelect: false,
+      options: [
+        { label: "提案通り", description: "{from} 〜 {to}、営業日{n}日 × 2 = {trip_no}回" },
+        { label: "期間を変更", description: "日付やTrip No.を手動で指定" }
+      ]
+      // "Other" → notes に "2026/02/16 - 2026/02/28, 20" 形式で入力
+    }
+  ]
+})
+```
+
+「期間を変更」が選択された場合は、追加の AskUserQuestion で From日付、To日付、Trip No. を個別に収集する。
+
+**"Other" が選択された場合のルール:**
+- `annotations[question].notes` に入力されたテキストを実際の値として使用する
+- notes が空の場合はユーザーに再入力を依頼する
+
+### Step 3: WBSコマンド解決
+
+`.myte/wbs_mapping.json` でコマンドを検索し、Charge Code を特定する（Skill Bのコマンド解決ロジックと同じ）。
+
+### Step 4: entry.json 作成
+
+`data/pending/{folder}/entry.json` を作成する。フォルダ名: `{from_yyyymmdd}-{charge_code}`
+
+### Step 5: スクリプト実行
+
+収集した情報で entry.json を作成した後、Playwrightスクリプトを実行する。
+
+```bash
+node .claude/skills/skill-e-myte-public-transport-entry/scripts/myte_public_transport_entry.js {entryId}
+```
+
+### 必須フィールド一覧
+
+| フィールド | 説明 | 取得方法 |
+|---|---|---|
+| Charge Code | WBSコード | AskUserQuestion → WBS解決 |
+| Country/Region | 経費発生国 | Japan（固定） |
+| Currency | 通貨 | JPY（固定） |
+| From (開始日) | 期間開始日 | 自動算出（前回終了日+1）→ 確認 |
+| To (終了日) | 期間終了日 | 自動算出（本日）→ 確認 |
+| Reason | 理由 | AskUserQuestion |
+| Type | 交通機関の種類 | AskUserQuestion |
+| Trip No. | 往復回数 | 自動算出（営業日×2）→ 確認 |
+| One Trip Amount | 片道運賃 | AskUserQuestion |
+| Consumption Type | 消費税タイプ | Consumption Tax 10%（デフォルト） |
+| Qualified Invoice | 適格請求書 | false（デフォルト） |
+| From Location | 出発地 | AskUserQuestion |
+| To Location | 到着地 | AskUserQuestion |
+| Comments | コメント（任意） | 空欄（デフォルト） |
+| Public Official >$25 | 公務員提供チェック | false（デフォルト） |
+
 ## Playwright操作手順
 
 ### Playwright設定

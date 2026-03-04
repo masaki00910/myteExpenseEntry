@@ -35,7 +35,7 @@ if (!fs.existsSync(entryJsonPath)) {
 }
 const historyEntry = JSON.parse(fs.readFileSync(entryJsonPath, 'utf-8'));
 const data = {
-  history_id: historyEntry.id,
+  history_id: historyEntry.entry_id || entryId,
   expense_type: historyEntry.expense_type,
   myte_fields: historyEntry.myte_fields,
 };
@@ -287,10 +287,14 @@ async function fillDate(page, selectors, dateStr, label) {
     try {
       const el = page.locator(sel).first();
       if ((await el.count()) > 0 && (await el.isVisible())) {
-        await el.click();
-        await el.press('Control+a');
-        await el.pressSequentially(dateForInput, { delay: 50 });
-        await page.keyboard.press('Tab');
+        // fill() で値をセットし、input/change イベントを発火
+        await el.fill(dateForInput);
+        await page.waitForTimeout(300);
+        // Angular の変更検知を確実にトリガーするため blur イベントも発火
+        await el.dispatchEvent('input');
+        await el.dispatchEvent('change');
+        await el.dispatchEvent('blur');
+        await page.waitForTimeout(500);
         console.log(`  ${label} = ${dateForInput} を入力しました`);
         return true;
       }
@@ -301,42 +305,9 @@ async function fillDate(page, selectors, dateStr, label) {
 }
 
 // ---------------------------------------------------------------------------
-// 前回ピリオドの期間終了日を取得
-// ---------------------------------------------------------------------------
-async function getPreviousPeriodEndDate(page) {
-  console.log('[P] 前回ピリオドの期間終了日を取得中...');
-  try {
-    // 前へボタンをクリック
-    const prevButton = page.locator('button[aria-label*="Previous"], button:has(mat-icon[fonticon="chevron_left"]), button:has(mat-icon:has-text("chevron_left"))').first();
-    if ((await prevButton.count()) > 0) {
-      await prevButton.click();
-      await page.waitForTimeout(2000);
-      await saveScreenshot(page, 'P1_previous_period');
-
-      // 期間表示テキストから終了日を抽出（例: "Feb 01 - Feb 15, 2026"）
-      const periodText = await page.locator('.period-label, [class*="period"], [class*="date-range"]').first().textContent().catch(() => null);
-      if (periodText) {
-        console.log(`  前回ピリオド: ${periodText.trim()}`);
-      }
-
-      // 今のピリオドに戻る
-      const nextButton = page.locator('button[aria-label*="Next"], button:has(mat-icon[fonticon="chevron_right"]), button:has(mat-icon:has-text("chevron_right"))').first();
-      if ((await nextButton.count()) > 0) {
-        await nextButton.click();
-        await page.waitForTimeout(2000);
-        console.log('  今のピリオドに戻りました');
-      }
-
-      return periodText ? periodText.trim() : null;
-    }
-  } catch (e) {
-    console.error(`  前回ピリオド取得中にエラー: ${e.message}`);
-  }
-  return null;
-}
-
-// ---------------------------------------------------------------------------
 // メイン処理
+// 注意: 前回ピリオドの取得は get_previous_period.js で事前に実行済み。
+// このスクリプトは entry.json の情報をもとにフォーム入力のみ行う。
 // ---------------------------------------------------------------------------
 (async () => {
   const userDataDir = path.join(PROJECT_ROOT, '.myte', 'browser-data');
@@ -374,37 +345,68 @@ async function getPreviousPeriodEndDate(page) {
     // [2] EXPENSESタブ
     console.log('[2] EXPENSESタブをクリック...');
     await page.locator('text=EXPENSES').first().click();
-    await page.waitForSelector('div.item.active', { timeout: 15000 });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(3000);
     await saveScreenshot(page, '02_expenses_tab');
-
-    // [P] 前回ピリオドの期間終了日を取得
-    const prevPeriod = await getPreviousPeriodEndDate(page);
 
     // [3] Travel - Public, Limo, & Other を選択
     console.log('[3] Travel - Public, Limo, & Other を選択...');
-    const nativeSelect = page.locator('select').first();
-    if ((await nativeSelect.count()) > 0 && (await nativeSelect.isVisible())) {
-      await nativeSelect.selectOption({ label: 'Travel - Public, Limo, & Other' });
-      console.log('  Travel - Public, Limo, & Other を選択しました（native select）');
-    } else {
-      const selectDropdownEl = page.locator("select, div.item.active").filter({ hasText: 'Select Expenses to Add' }).first();
-      await selectDropdownEl.waitFor({ state: 'visible', timeout: 15000 });
-      await selectDropdownEl.click();
-      await page.waitForTimeout(2000);
-      for (const loc of [
-        page.getByText('Travel - Public, Limo, & Other', { exact: false }),
-        page.locator("a:has-text('Travel - Public')"),
-        page.locator("li:has-text('Travel - Public')"),
-      ]) {
-        try {
-          if ((await loc.count()) > 0 && (await loc.first().isVisible())) {
-            await loc.first().click();
-            console.log('  Travel - Public, Limo, & Other を選択しました');
-            break;
-          }
-        } catch {}
+
+    // 方法1: #comboboxselect-expense-dropdown を試す
+    let expenseSelected = false;
+    try {
+      const combobox = page.locator('#comboboxselect-expense-dropdown').first();
+      if ((await combobox.count()) > 0 && (await combobox.isVisible())) {
+        await combobox.click();
+        await page.waitForTimeout(1500);
+        const travelOption = page.locator('li[aria-label*="Travel - Public"]').first();
+        if ((await travelOption.count()) > 0) {
+          await travelOption.click();
+          expenseSelected = true;
+          console.log('  Travel - Public, Limo, & Other を選択しました（combobox）');
+        }
       }
+    } catch {}
+
+    // 方法2: ネイティブ select を試す
+    if (!expenseSelected) {
+      try {
+        const nativeSelect = page.locator('select').first();
+        if ((await nativeSelect.count()) > 0 && (await nativeSelect.isVisible())) {
+          await nativeSelect.selectOption({ label: 'Travel - Public, Limo, & Other' });
+          expenseSelected = true;
+          console.log('  Travel - Public, Limo, & Other を選択しました（native select）');
+        }
+      } catch {}
+    }
+
+    // 方法3: "Select Expenses to Add" テキストを持つ要素を探す
+    if (!expenseSelected) {
+      try {
+        const selectExpenses = page.locator('div.item.active, div[role="combobox"], button, div.dropdown').filter({ hasText: /Select Expenses/i }).first();
+        if ((await selectExpenses.count()) > 0 && (await selectExpenses.isVisible())) {
+          await selectExpenses.click();
+          await page.waitForTimeout(2000);
+          for (const loc of [
+            page.locator('li[aria-label*="Travel - Public"]').first(),
+            page.getByText('Travel - Public, Limo, & Other', { exact: false }).first(),
+            page.locator("li:has-text('Travel - Public')").first(),
+          ]) {
+            try {
+              if ((await loc.count()) > 0 && (await loc.isVisible())) {
+                await loc.click();
+                expenseSelected = true;
+                console.log('  Travel - Public, Limo, & Other を選択しました');
+                break;
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+    }
+
+    if (!expenseSelected) {
+      await saveScreenshot(page, '03_expense_select_failed');
+      throw new Error('Travel - Public, Limo, & Other の選択に失敗しました。EXPENSESタブのUIを確認してください。');
     }
 
     // フォーム読み込み待機
