@@ -278,6 +278,13 @@ async function fillByLabel(page, labelText, value) {
     ],
   });
 
+  // about:blank タブを閉じる（persistent context は起動のたびに追加するため）
+  const allPages = browser.pages();
+  for (const p of allPages) {
+    if (p.url() === 'about:blank' && allPages.length > 1) {
+      await p.close();
+    }
+  }
   const page = browser.pages()[0] || await browser.newPage();
 
   try {

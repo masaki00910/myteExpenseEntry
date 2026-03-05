@@ -312,6 +312,13 @@ async function fillDate(page, selectorCandidates, dateStr, label, convertToMDY =
     ],
   });
 
+  // about:blank タブを閉じる（persistent context は起動のたびに追加するため）
+  const allPages = browser.pages();
+  for (const p of allPages) {
+    if (p.url() === 'about:blank' && allPages.length > 1) {
+      await p.close();
+    }
+  }
   const page = browser.pages()[0] || await browser.newPage();
 
   try {
