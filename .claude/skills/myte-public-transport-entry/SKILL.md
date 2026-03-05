@@ -7,12 +7,12 @@
 ## 実行スクリプト
 
 ```
-.claude/skills/skill-e-myte-public-transport-entry/scripts/myte_public_transport_entry.js
+.claude/skills/myte-public-transport-entry/scripts/myte_public_transport_entry.js
 ```
 
 実行コマンド（プロジェクトルートから）:
 ```bash
-node .claude/skills/skill-e-myte-public-transport-entry/scripts/myte_public_transport_entry.js <entryId>
+node .claude/skills/myte-public-transport-entry/scripts/myte_public_transport_entry.js <entryId>
 ```
 
 - OCR/画像添付は不要。entry.json の myte_fields のみ使用する。
@@ -65,7 +65,7 @@ entry.json の myte_fields 例:
 **ユーザーに何も聞く前に**、まず以下のスクリプトを Bash で実行する:
 
 ```bash
-node .claude/skills/skill-e-myte-public-transport-entry/scripts/get_previous_period.js
+node .claude/skills/myte-public-transport-entry/scripts/get_previous_period.js
 ```
 
 このスクリプトは:
@@ -218,7 +218,7 @@ AskUserQuestion({
 収集した情報で entry.json を作成した後、Playwrightスクリプトを実行する。
 
 ```bash
-node .claude/skills/skill-e-myte-public-transport-entry/scripts/myte_public_transport_entry.js {entryId}
+node .claude/skills/myte-public-transport-entry/scripts/myte_public_transport_entry.js {entryId}
 ```
 
 ### 必須フィールド一覧

@@ -412,15 +412,15 @@ Step 8 の出力が確定したら、`expense_type` に応じて対応するmyTE
 
 | expense_type | 呼び出すSkill | Skillツール引数 |
 |---|---|---|
-| `Travel - Taxi` | Skill C | `skill: "skill-c-myte-taxi-entry"` |
-| `Accommodation - Hotel` | Skill D | `skill: "skill-d-myte-hotel-entry"` |
+| `Travel - Taxi` | Skill C | `skill: "myte-taxi-entry"` |
+| `Accommodation - Hotel` | Skill D | `skill: "myte-hotel-entry"` |
 | 上記以外 | なし（ユーザーに選択させる） | — |
 
 ### 対応Skillが存在する場合
 
 自動で Skill ツールを呼び出す:
 ```
-Skill({ skill: "skill-c-myte-taxi-entry" })
+Skill({ skill: "myte-taxi-entry" })
 ```
 呼び出し時、確定済みの entry.json のパス（`data/pending/{folder}/entry.json`）を引数として渡す。
 

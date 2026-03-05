@@ -7,7 +7,7 @@ Claude Code Skillのマークダウンファイルを厳格にレビューし、
 ## トリガー
 
 - 「Skillをレビューして」「スキルレビュー」「skill review」
-- 特定Skillを指定: 「Skill Aをレビューして」「skill-c-myte-taxi-entryをチェック」
+- 特定Skillを指定: 「Skill Aをレビューして」「myte-taxi-entryをチェック」
 - 指定がない場合は `.claude/skills/` 配下の全Skillを対象にする
 
 ## レビュー観点
@@ -98,8 +98,8 @@ Skill間の整合性・重複・依存関係を横断的にチェックする。
 
 | Skill | 行数 | 指摘数 | 重大 | 警告 | 提案 |
 |---|---|---|---|---|---|
-| skill-a-receipt-ocr | XXX | X | X | X | X |
-| skill-b-wbs-mapping | XXX | X | X | X | X |
+| receipt-ocr | XXX | X | X | X | X |
+| wbs-management | XXX | X | X | X | X |
 | ...                  | ... | . | . | . | . |
 
 ---

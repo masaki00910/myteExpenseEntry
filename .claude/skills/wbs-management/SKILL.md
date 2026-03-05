@@ -50,11 +50,11 @@ myTEにもCharge Codeを登録しました。
 
 WBS登録時に、Charge Code を myTE にも自動登録する。
 
-**実行スクリプト**: `.claude/skills/skill-b-wbs-mapping/scripts/myte_add_chargecode.js`
+**実行スクリプト**: `.claude/skills/wbs-management/scripts/myte_add_chargecode.js`
 
 **実行コマンド**:
 ```bash
-node .claude/skills/skill-b-wbs-mapping/scripts/myte_add_chargecode.js {charge_code}
+node .claude/skills/wbs-management/scripts/myte_add_chargecode.js {charge_code}
 ```
 
 **スクリプトの処理内容**:
