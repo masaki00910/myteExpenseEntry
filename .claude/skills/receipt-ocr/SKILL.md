@@ -81,16 +81,17 @@ Readツールで領収書画像を読み込み、以下の情報を抽出する:
 
 OCR結果（日付）とWBS解決（コード）が揃った段階で以下を実行する。
 
-1. **フォルダ名の決定**: `{expense_yyyymmdd}-{wbs_code}`
-   - Taxi: `on_date` の日付（例: `2026/03/01` → `20260301-CJDK4001`）
-   - Hotel: `check_in_date` の日付（例: `2026/03/01` → `20260301-CJDK4001`）
+1. **フォルダ名の決定**: `{expense_yyyymmdd}-{type}-{wbs_code}`
+   - type: `taxi`, `hotel`, `transport` のいずれか（expense_type に対応）
+   - Taxi: `on_date` の日付（例: `2026/03/01` → `20260301-taxi-CJDK4001`）
+   - Hotel: `check_in_date` の日付（例: `2026/03/01` → `20260301-hotel-CJDK4001`）
    - 同名フォルダが `data/pending/` または `data/done/` に既存する場合: `-2`、`-3` を付与
 2. **フォルダ作成**: `data/pending/{folder}/`
 3. **画像配置**:
    - PatternA（一時保存済み）: 一時ファイルを `data/pending/{folder}/receipt.{ext}` に移動
    - PatternB（ファイルパス指定）: 元ファイルを `data/pending/{folder}/receipt.{ext}` にコピー
 4. **entry.json 作成**: `data/pending/{folder}/entry.json` を Writeツールで作成（status: `ocr_completed`）
-   - `id` フィールドはフォルダ名と同一（例: `20260301-CJDK4001`）
+   - `id` フィールドはフォルダ名と同一（例: `20260301-taxi-CJDK4001`）
 
 ### Step 6: 不足情報の確認（AskUserQuestion を使用）
 

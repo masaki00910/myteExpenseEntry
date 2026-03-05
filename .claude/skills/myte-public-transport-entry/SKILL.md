@@ -15,6 +15,8 @@
 node .claude/skills/myte-public-transport-entry/scripts/myte_public_transport_entry.js <entryId>
 ```
 
+**⚠️ 重要: 必ずこのスクリプトファイルを直接実行すること。一時ファイルを作成してハードコーディングしたスクリプトを実行してはならない。**
+
 - OCR/画像添付は不要。entry.json の myte_fields のみ使用する。
 - ブラウザを閉じるとステータスが `submitted` に自動更新される。
 
@@ -211,7 +213,7 @@ AskUserQuestion({
 
 ### Step 4: entry.json 作成
 
-`data/pending/{folder}/entry.json` を作成する。フォルダ名: `{from_yyyymmdd}-{charge_code}`
+`data/pending/{folder}/entry.json` を作成する。フォルダ名: `{from_yyyymmdd}-transport-{charge_code}`
 
 ### Step 5: スクリプト実行
 

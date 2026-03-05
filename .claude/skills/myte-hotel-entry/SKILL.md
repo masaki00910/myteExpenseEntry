@@ -4,6 +4,19 @@
 
 Skill Aで確定したホテル経費データをPlaywrightでmyTEに自動入力する。入力完了後、OCR履歴のstatusを更新する。
 
+## 実行スクリプト
+
+```
+.claude/skills/myte-hotel-entry/scripts/myte_hotel_entry.js
+```
+
+実行コマンド（プロジェクトルートから）:
+```bash
+node .claude/skills/myte-hotel-entry/scripts/myte_hotel_entry.js
+```
+
+**⚠️ 重要: 必ずこのスクリプトファイルを直接実行すること。一時ファイルを作成してハードコーディングしたスクリプトを実行してはならない。**
+
 ## 前提条件
 
 - Playwrightが使用可能であること（`npm install playwright` でインストール済み）
