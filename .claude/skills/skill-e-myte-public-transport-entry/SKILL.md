@@ -124,11 +124,18 @@ AskUserQuestion({
       header: "Reason",
       multiSelect: false,
       options: [
-        { label: "Home <-> Client Site/Other Office", description: "自宅と客先/他オフィス間" },
+        { label: "Home <-> Home Office", description: "自宅と自社オフィス間" },
         { label: "Home <-> Airport/Train", description: "自宅と空港/駅間" },
-        { label: "Client Site <-> Airport/Train", description: "客先と空港/駅間" },
+        { label: "Hotel <-> Client Site/Other Office", description: "ホテルと客先/他オフィス間" },
         { label: "Hotel <-> Airport/Train", description: "ホテルと空港/駅間" }
       ]
+      // "Other" が選択された場合:
+      // 残りの選択肢を番号付きテキストで提示し、番号で選んでもらう:
+      //   1. Home <-> Client Site/Other Office（自宅と客先/他オフィス間）
+      //   2. Client Site <-> Airport/Train（客先と空港/駅間）
+      //   3. Client Site <-> Client Site（客先間）
+      //   4. Hotel <-> Other Office（ホテルと他オフィス間）
+      //   5. Other（自由入力 → notes に正確な値を入力）
     },
     {
       question: "Type（交通機関の種類）を選択してください",
