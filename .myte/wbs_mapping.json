@@ -1,20 +1,5 @@
 {
   "version": "1.0",
-  "updated_at": "2026-03-02T18:07:03+09:00",
-  "mappings": [
-    {
-      "command": "bnm",
-      "charge_code": "A302005",
-      "description": "BNM",
-      "is_active": true,
-      "created_at": "2026-03-02T00:00:00+09:00"
-    },
-    {
-      "command": "mod",
-      "charge_code": "CXNYO001",
-      "description": "",
-      "is_active": true,
-      "created_at": "2026-03-02T11:30:07+09:00"
-    }
-  ]
+  "updated_at": "2026-03-05T12:00:00+09:00",
+  "mappings": []
 }

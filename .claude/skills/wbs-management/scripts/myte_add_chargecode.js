@@ -51,29 +51,42 @@ async function addChargeCode() {
     ],
   });
 
+  // about:blank タブを閉じる（persistent context は起動のたびに追加するため）
+  const allPages = browser.pages();
+  for (const p of allPages) {
+    if (p.url() === 'about:blank' && allPages.length > 1) {
+      await p.close();
+    }
+  }
   const page = browser.pages()[0] || await browser.newPage();
 
   try {
-    // 1. myTE にアクセス
+    // 1. myTE にアクセス（SSOリダイレクト中のタイムアウトは無視）
     console.log('myTE を開きます...');
-    await page.goto('https://myte.accenture.com/#/time', {
-      waitUntil: 'load',
-      timeout: 30000,
-    });
-
-    // SSO チェック
-    const currentUrl = page.url();
-    if (currentUrl.includes('login') || currentUrl.includes('sso')) {
-      await browser.close();
-      return 'sso_expired';
+    try {
+      await page.goto('https://myte.accenture.com/#/time', {
+        waitUntil: 'load',
+        timeout: 120000,
+      });
+    } catch (e) {
+      console.log('（ページ遷移待機中...）');
     }
 
-    await page.waitForTimeout(2000);
-
-    // 2. CHARGE CODE タブを開く
+    // 2. myTE アプリのロード完了を待つ（CHARGE CODE タブの出現で判定）
+    //    SSOリダイレクト → FIDO認証 → myTEに戻る → アプリロード を全て待機
     console.log('CHARGE CODE タブを開きます...');
     const chargeCodeTab = page.locator('text=CHARGE CODE').first();
-    await chargeCodeTab.click({ timeout: 10000 });
+    try {
+      await chargeCodeTab.waitFor({ state: 'visible', timeout: 120000 });
+    } catch (e) {
+      const currentUrl = page.url();
+      if (currentUrl.includes('login') || currentUrl.includes('microsoftonline')) {
+        await browser.close();
+        return 'sso_expired';
+      }
+      throw e;
+    }
+    await chargeCodeTab.click();
     await page.waitForTimeout(1000);
 
     // 3. Enter Charge Code 入力欄にコードを入力
